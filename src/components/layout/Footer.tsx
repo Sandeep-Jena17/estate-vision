@@ -1,27 +1,42 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * Footer Component
  * Application footer with links and information
  */
 
-export interface FooterProps {
-  onLinkClick?: (section: string) => void;
-}
+export const Footer: React.FC = () => {
+  const navigate = useNavigate();
 
-export const Footer: React.FC<FooterProps> = ({ onLinkClick }) => {
   const sections = [
     {
       title: 'Properties',
-      links: ['Buy', 'Rent', 'New Projects', 'Commercial', 'Plots'],
+      links: [
+        { label: 'Buy', path: '/listings' },
+        { label: 'Rent', path: '/listings' },
+        { label: 'New Projects', path: '/projects' },
+        { label: 'Commercial', path: '/properties' },
+        { label: 'Plots', path: '/properties' },
+      ],
     },
     {
       title: 'Company',
-      links: ['About Us', 'Careers', 'Blog', 'Press'],
+      links: [
+        { label: 'About Us', path: '/' },
+        { label: 'Careers', path: '/' },
+        { label: 'Blog', path: '/' },
+        { label: 'Press', path: '/' },
+      ],
     },
     {
       title: 'Support',
-      links: ['Help Centre', 'Terms', 'Privacy', 'Contact'],
+      links: [
+        { label: 'Help Centre', path: '/' },
+        { label: 'Terms', path: '/' },
+        { label: 'Privacy', path: '/' },
+        { label: 'Contact', path: '/' },
+      ],
     },
   ];
 
@@ -69,11 +84,11 @@ export const Footer: React.FC<FooterProps> = ({ onLinkClick }) => {
               </div>
               {section.links.map((link) => (
                 <button
-                  key={link}
+                  key={link.label}
                   className="footer-link"
-                  onClick={() => onLinkClick?.(link)}
+                  onClick={() => navigate(link.path)}
                 >
-                  {link}
+                  {link.label}
                 </button>
               ))}
             </div>
@@ -98,5 +113,7 @@ export const Footer: React.FC<FooterProps> = ({ onLinkClick }) => {
     </footer>
   );
 };
+
+Footer.displayName = 'Footer';
 
 Footer.displayName = 'Footer';
