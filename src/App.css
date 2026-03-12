@@ -22,14 +22,235 @@ p {
   line-height: 1.6;
 }
 
-@media (max-width: 768px) {
-  main {
-    margin-top: 60px;
+/* ============================================
+   Navigation Styles
+   ============================================ */
+
+/* Header Container */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--white);
+  z-index: 999;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  transition: box-shadow var(--transition);
+}
+
+/* Logo Styling */
+.nav-logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--slate);
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.nav-logo .dot {
+  width: 8px;
+  height: 8px;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+/* Desktop Navigation Links */
+.nav-desktop-links {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-link {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  color: var(--slate);
+  background: rgba(26, 31, 46, 0.05);
+}
+
+.nav-link.active {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+/* Desktop Auth Buttons */
+.nav-desktop-auth {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Mobile Menu Toggle Button */
+.nav-mobile-toggle {
+  display: none !important;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  color: var(--slate);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  transition: color var(--transition);
+}
+
+.nav-mobile-toggle:active {
+  color: var(--gold);
+  transform: scale(0.95);
+}
+
+/* Mobile Menu Overlay */
+.mobile-menu-overlay {
+  position: fixed;
+  top: 68px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 31, 46, 0.5);
+  z-index: 997;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Mobile Menu Panel */
+.mobile-menu {
+  position: fixed;
+  top: 68px;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 320px;
+  background: var(--white);
+  z-index: 998;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Mobile Menu Link Styling */
+.mobile-menu .nav-link {
+  width: 100%;
+  text-align: left;
+  border-radius: 0;
+  padding: 14px 20px;
+  margin: 0;
+  font-size: 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mobile-menu .nav-link:last-of-type:not(.nav-link.active ~ .nav-link) {
+  border-bottom: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+/* Tablets and below (≤ 768px) */
+@media (max-width: 768px) {
+  .nav {
+    height: 60px;
+    padding: 0 12px;
+  }
+
+  main {
+    margin-top: 60px;
+  }
+
+  /* Hide desktop elements */
+  .nav-desktop-links {
+    display: none !important;
+  }
+
+  .nav-desktop-auth {
+    display: none !important;
+  }
+
+  /* Show mobile toggle */
+  .nav-mobile-toggle {
+    display: flex !important;
+  }
+
+  .mobile-menu {
+    top: 60px;
+  }
+
+  .mobile-menu-overlay {
+    top: 60px;
+  }
+
+  .mobile-menu {
+    max-width: 100%;
+  }
+}
+
+/* Small phones (≤ 480px) */
 @media (max-width: 480px) {
+  .nav {
+    height: 56px;
+  }
+
   main {
     margin-top: 56px;
+  }
+
+  .nav-logo {
+    font-size: 16px;
+  }
+
+  .mobile-menu {
+    top: 56px;
+  }
+
+  .mobile-menu-overlay {
+    top: 56px;
+  }
+
+  .mobile-menu .nav-link {
+    padding: 12px 16px;
+    font-size: 14px;
   }
 }

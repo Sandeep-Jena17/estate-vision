@@ -13,24 +13,29 @@ export const Header: React.FC = () => {
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
 
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-
     window.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
     };
   }, []);
+
+  // Manage body scroll lock when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     // Close menu when route changes
@@ -65,6 +70,7 @@ export const Header: React.FC = () => {
           padding: '0 24px',
           maxWidth: '1280px',
           margin: '0 auto',
+          height: '100%',
         }}>
           {/* Logo */}
           <button
@@ -77,11 +83,7 @@ export const Header: React.FC = () => {
           </button>
 
           {/* Desktop Navigation Links */}
-          <div className="nav-desktop-links" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 4
-          }}>
+          <div className="nav-desktop-links">
             {navItems.map(item => (
               <button
                 key={item.path}
@@ -94,11 +96,7 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Desktop Auth Buttons */}
-          <div className="nav-desktop-auth" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 10
-          }}>
+          <div className="nav-desktop-auth">
             <Button variant="ghost" size="sm">
               Log In
             </Button>
@@ -111,21 +109,6 @@ export const Header: React.FC = () => {
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="nav-mobile-toggle"
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '24px',
-              cursor: 'pointer',
-              padding: 0,
-              color: 'var(--slate)',
-              display: 'none',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              width: '44px',
-              height: '44px',
-            }}
             title="Toggle menu"
           >
             {isMobileMenuOpen ? '✕' : '☰'}
@@ -153,20 +136,6 @@ export const Header: React.FC = () => {
                 navigate(item.path);
                 setIsMobileMenuOpen(false);
               }}
-              style={{
-                width: '100%',
-                padding: '12px 24px',
-                textAlign: 'left',
-                borderRadius: 0,
-                margin: 0,
-                background: isActive(item.path) ? 'var(--cream)' : 'transparent',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: isActive(item.path) ? 'var(--gold)' : 'var(--muted)',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all var(--transition)',
-              }}
             >
               {item.label}
             </button>
@@ -177,7 +146,7 @@ export const Header: React.FC = () => {
             display: 'flex',
             flexDirection: 'column',
             gap: 8,
-            padding: '12px 24px',
+            padding: '12px 20px',
             borderTop: '1px solid var(--border)',
             marginTop: 8
           }}>
