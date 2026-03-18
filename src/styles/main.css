@@ -1,0 +1,28 @@
+/* EstateVision — Master CSS entry point */
+/* Import order: base → layout → components → utilities */
+/* Page-level CSS is imported directly by each page component */
+
+/* Base */
+@import './base/variables.css';
+@import './base/reset.css';
+@import './base/animations.css';
+
+/* Layout */
+@import './layout/app-shell.css';
+@import './layout/grid.css';
+@import './layout/header.css';
+@import './layout/footer.css';
+
+/* Components */
+@import './components/buttons.css';
+@import './components/forms.css';
+@import './components/badges.css';
+@import './components/cards.css';
+@import './components/gallery.css';
+@import './components/booking.css';
+@import './components/modal.css';
+@import './components/toast.css';
+@import './components/ui.css';
+
+/* Utilities */
+@import './utilities/utilities.css';

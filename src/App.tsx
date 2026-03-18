@@ -1,8 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Header, Footer } from './components/layout';
-import { GLOBAL_STYLES } from './styles/global';
-import './styles/pages.css';
+import './styles/main.css';
 
 // Page imports
 import HomePage from './pages/HomePage';
@@ -26,7 +25,6 @@ import UserDashboardPage from './pages/UserDashboardPage';
 function App() {
   return (
     <Router>
-      <style>{GLOBAL_STYLES}</style>
       <div className="App">
         <Header />
         <main>

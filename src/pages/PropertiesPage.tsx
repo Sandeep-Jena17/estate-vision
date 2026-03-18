@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MOCK_PROPERTIES } from '../services/mockData';
+import '../styles/pages/listings.css';
 
 /**
  * PropertiesPage Component

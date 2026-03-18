@@ -1,5 +1,6 @@
 import React from 'react';
 import { MOCK_PROPERTIES } from '../services/mockData';
+import '../styles/pages/agents.css';
 
 /**
  * AgentsPage Component

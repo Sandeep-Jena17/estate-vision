@@ -44,14 +44,7 @@ export const Footer: React.FC = () => {
     <footer className="footer">
       <div className="container">
         {/* Main Footer Content */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1fr 1fr 1fr',
-            gap: 48,
-            marginBottom: 48,
-          }}
-        >
+        <div className="footer-grid">
           {/* Branding */}
           <div>
             <div className="footer-logo">EstateVision</div>
@@ -113,7 +106,5 @@ export const Footer: React.FC = () => {
     </footer>
   );
 };
-
-Footer.displayName = 'Footer';
 
 Footer.displayName = 'Footer';

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSEO, getOrganizationSchema } from '../hooks';
+import '../styles/pages/home.css';
 import { MOCK_PROPERTIES } from '../services/mockData';
 
 /**

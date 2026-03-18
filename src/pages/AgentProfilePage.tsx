@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../styles/pages/agents.css';
 
 const MOCK_AGENT = {
   id: 'agent_001',

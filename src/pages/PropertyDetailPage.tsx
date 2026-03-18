@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import '../styles/pages/property-details.css';
 
 const MOCK_PROPERTY = {
   id: 1,

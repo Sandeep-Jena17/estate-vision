@@ -1,13 +1,10 @@
-/* Base styles - All main styles are in src/styles/global.ts */
-/* These styles are injected dynamically in App.tsx via <style> tag */
+/* Base styles — body, html, and root element */
 
-/* Ensure body and html are properly styled */
 body, html {
   width: 100%;
   height: 100%;
 }
 
-/* Normalize default margins on root element */
 #root {
   width: 100%;
   min-height: 100vh;

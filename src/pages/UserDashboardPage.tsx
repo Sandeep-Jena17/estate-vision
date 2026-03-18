@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../styles/pages/dashboard.css';
 
 const MOCK_USER = {
   name: 'Sandeep Kumar Jena',

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { MOCK_PROPERTIES } from '../services/mockData';
+import '../styles/pages/listings.css';
 
 export default function SearchListingsPage() {
   const [searchQ, setSearchQ] = useState('');

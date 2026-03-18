@@ -27,6 +27,18 @@ export const formatCurrency = (
 };
 
 /**
+ * Format property price to ₹X.X Cr or ₹X.X L
+ * @param price - Price in rupees
+ * @returns Formatted price string
+ */
+export const formatPrice = (price: number): string => {
+  if (price >= 10000000) {
+    return `₹${(price / 10000000).toFixed(2).replace(/\.?0+$/, '')} Cr`;
+  }
+  return `₹${(price / 100000).toFixed(1)} L`;
+};
+
+/**
  * Abbreviate large numbers
  * @param num - Number to abbreviate
  * @returns Abbreviated string
