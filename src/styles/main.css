@@ -26,3 +26,6 @@
 
 /* Utilities */
 @import './utilities/utilities.css';
+
+/* Pages */
+@import './pages/auth.css';
