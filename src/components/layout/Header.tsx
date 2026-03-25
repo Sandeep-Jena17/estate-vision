@@ -22,15 +22,15 @@ function useTheme() {
 const MENU_ITEMS: Record<UserRole, { icon: string; label: string; path: string }[]> = {
   admin: [
     { icon: '⊞',  label: 'Admin Panel',    path: '/admin'            },
-    { icon: '📊', label: 'Analytics',       path: '/admin/analytics'  },
+    { icon: '🏠', label: 'All Listings',    path: '/admin/listings'   },
     { icon: '👥', label: 'Manage Agents',   path: '/admin/agents'     },
     { icon: '⚙',  label: 'Settings',        path: '/admin/settings'   },
   ],
   agent: [
-    { icon: '⊞',  label: 'Agent Dashboard', path: '/admin'            },
-    { icon: '🏠', label: 'My Listings',      path: '/admin/listings'   },
-    { icon: '👥', label: 'My Leads',         path: '/admin/leads'      },
-    { icon: '⚙',  label: 'Profile Settings', path: '/dashboard'        },
+    { icon: '⊞',  label: 'Agent Dashboard', path: '/agent'            },
+    { icon: '🏠', label: 'My Listings',      path: '/agent/listings'   },
+    { icon: '👥', label: 'My Leads',         path: '/agent/leads'      },
+    { icon: '⚙',  label: 'Profile Settings', path: '/agent/profile'   },
   ],
   buyer: [
     { icon: '👤', label: 'My Dashboard',     path: '/dashboard'        },
@@ -235,7 +235,7 @@ export const Header: React.FC = () => {
                 src={user.avatar || `https://i.pravatar.cc/80?u=${user.id}`}
                 alt={user.name}
                 className="nav-avatar"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate(MENU_ITEMS[user.role][0].path)}
                 style={{ cursor: 'pointer' }}
               />
             )}

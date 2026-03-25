@@ -18,21 +18,25 @@ const FEATURES = [
 const AuthPage: React.FC = () => {
   const navigate        = useNavigate();
   const [params]        = useSearchParams();
-  const { isLoggedIn }  = useAuth();
+  const { isLoggedIn, user } = useAuth();
 
   const initialMode = (params.get('mode') as AuthMode) || 'login';
   const [mode,         setMode]        = useState<AuthMode>(initialMode);
   const [otpEmail,     setOtpEmail]    = useState('');
   const [resetEmail,   setResetEmail]  = useState('');
 
-  /* Redirect already-logged-in users */
+  /* Redirect already-logged-in users to their role dashboard */
   useEffect(() => {
-    if (isLoggedIn) {
+    if (isLoggedIn && user) {
       const saved = localStorage.getItem('ev_redirect');
       localStorage.removeItem('ev_redirect');
-      navigate(saved || '/', { replace: true });
+      const roleFallback =
+        user.role === 'admin' ? '/admin' :
+        user.role === 'agent' ? '/agent' :
+        '/dashboard';
+      navigate(saved || roleFallback, { replace: true });
     }
-  }, [isLoggedIn, navigate]);
+  }, [isLoggedIn, user, navigate]);
 
   /* Sync URL param → mode */
   useEffect(() => {

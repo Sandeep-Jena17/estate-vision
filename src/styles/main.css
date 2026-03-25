@@ -29,3 +29,6 @@
 
 /* Pages */
 @import './pages/auth.css';
+
+/* Admin & Agent Panel */
+@import './admin.css';
