@@ -1,49 +1,48 @@
 /**
  * AuthContext — global auth state for EstateVision
- * Currently uses mock localStorage auth.
- * When AWS Cognito is ready, replace only the function bodies marked MOCK.
+ * Powered by AWS Cognito via amazon-cognito-identity-js
  */
 
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, {
+  createContext, useState, useEffect,
+  useContext, useCallback, useRef,
+} from 'react';
+import {
+  CognitoUserPool,
+  CognitoUser,
+  AuthenticationDetails,
+  CognitoUserAttribute,
+  CognitoUserSession,
+} from 'amazon-cognito-identity-js';
 import { User, UserRole } from '../types/auth.types';
 
-/* ─── Mock users (remove when Cognito is integrated) ──────── */
-const MOCK_USERS: User[] = [
-  {
-    id:        'user_admin_001',
-    name:      'Sandeep Kumar Jena',
-    email:     'jenasandeep595@gmail.com',
-    phone:     '+91 8917404918',
-    role:      'admin',
-    verified:  true,
-    avatar:    'https://i.pravatar.cc/80?img=11',
-    createdAt: '2024-01-01',
-  },
-  {
-    id:         'user_agent_001',
-    name:       'Priya Sharma',
-    email:      'agent@demo.com',
-    phone:      '+91 98765 43210',
-    role:       'agent',
-    verified:   true,
-    avatar:     'https://i.pravatar.cc/80?img=47',
-    agencyName: 'Sharma Realty',
-    reraId:     'RERA/AG/OD/2019/001234',
-    createdAt:  '2024-02-01',
-  },
-  {
-    id:        'user_buyer_001',
-    name:      'Rahul Nayak',
-    email:     'buyer@demo.com',
-    phone:     '+91 91234 56789',
-    role:      'buyer',
-    verified:  true,
-    avatar:    'https://i.pravatar.cc/80?img=33',
-    createdAt: '2024-03-01',
-  },
-];
+/* ─── Cognito pool (values from .env) ────────────────────── */
+const userPool = new CognitoUserPool({
+  UserPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID!,
+  ClientId:   process.env.REACT_APP_COGNITO_CLIENT_ID!,
+});
 
-/* ─── Friendly error messages (matches Cognito error codes) ── */
+/* ─── Build User object from Cognito attributes ──────────── */
+function buildUser(
+  sub: string,
+  attrs: { getName(): string; getValue(): string }[]
+): User {
+  const get = (name: string) =>
+    attrs.find(a => a.getName() === name)?.getValue() ?? '';
+  return {
+    id:         sub,
+    cognitoId:  sub,
+    name:       get('name'),
+    email:      get('email'),
+    phone:      get('phone_number') || undefined,
+    role:       (get('custom:role') || 'buyer') as UserRole,
+    agencyName: get('custom:agencyName') || undefined,
+    verified:   true,
+    createdAt:  new Date().toISOString(),
+  };
+}
+
+/* ─── Friendly error messages (maps Cognito error codes) ─── */
 const ERROR_MESSAGES: Record<string, string> = {
   UserNotFoundException:     'No account found with this email.',
   NotAuthorizedException:    'Incorrect email or password.',
@@ -51,9 +50,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   CodeMismatchException:     'Invalid OTP. Please try again.',
   ExpiredCodeException:      'OTP has expired. Please request a new one.',
   UserNotConfirmedException: 'Please verify your email before logging in.',
+  LimitExceededException:    'Too many attempts. Please try again later.',
+  InvalidPasswordException:  'Password does not meet the requirements.',
+  InvalidParameterException: 'Please check your details and try again.',
   NetworkError:              'Network error. Please check your connection.',
-  InvalidCredentials:        'Incorrect email or password.',
-  EmailExists:               'An account with this email already exists.',
 };
 
 const friendlyError = (code: string) =>
@@ -61,7 +61,7 @@ const friendlyError = (code: string) =>
 
 /* ─── Context shape ───────────────────────────────────────── */
 interface AuthContextType {
-  user:      User | null;
+  user:       User | null;
   isLoggedIn: boolean;
   isLoading:  boolean;
   error:      string | null;
@@ -69,21 +69,26 @@ interface AuthContextType {
   isAgent:    boolean;
   isBuyer:    boolean;
 
-  login: (email: string, password: string) => Promise<{ success: boolean; role?: UserRole; error?: string }>;
+  login: (
+    email: string, password: string
+  ) => Promise<{ success: boolean; role?: UserRole; error?: string }>;
+
   register: (data: {
-    name:       string;
-    email:      string;
-    password:   string;
-    phone?:     string;
-    role:       'buyer' | 'agent';
+    name:        string;
+    email:       string;
+    password:    string;
+    phone?:      string;
+    role:        'buyer' | 'agent';
     agencyName?: string;
   }) => Promise<{ success: boolean; needsOTP: boolean; error?: string }>;
-  confirmOTP:     (email: string, otp: string)                        => Promise<{ success: boolean; error?: string }>;
-  forgotPassword: (email: string)                                      => Promise<{ success: boolean; error?: string }>;
-  resetPassword:  (email: string, otp: string, newPassword: string)   => Promise<{ success: boolean; error?: string }>;
-  logout:  () => void;
-  getToken: () => string | null;
-  clearError: () => void;
+
+  confirmOTP:     (email: string, otp: string)                      => Promise<{ success: boolean; role?: string; error?: string }>;
+  forgotPassword: (email: string)                                    => Promise<{ success: boolean; error?: string }>;
+  resetPassword:  (email: string, otp: string, newPwd: string)      => Promise<{ success: boolean; error?: string }>;
+  resendOTP:      (email: string)                                    => Promise<{ success: boolean; error?: string }>;
+  logout:         () => void;
+  getToken:       () => Promise<string | null>;
+  clearError:     () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -94,156 +99,267 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [error,     setError]     = useState<string | null>(null);
 
-  /* Restore session from localStorage on mount */
+  // Temporarily holds password between register → confirmOTP for auto-login
+  const pendingPasswordRef  = useRef<string | null>(null);
+  // Holds generated username between register → confirmOTP (email-alias pools)
+  const pendingUsernameRef  = useRef<string | null>(null);
+
+  /* ── Restore session on mount ───────────────────────────── */
   useEffect(() => {
-    const saved = localStorage.getItem('ev_user');
-    if (saved) {
-      try { setUser(JSON.parse(saved)); } catch {}
+    const currentUser = userPool.getCurrentUser();
+    if (!currentUser) {
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false);
+    currentUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+      if (err || !session?.isValid()) {
+        setIsLoading(false);
+        return;
+      }
+      currentUser.getUserAttributes((attrErr, attrs) => {
+        setIsLoading(false);
+        if (attrErr || !attrs) return;
+        const sub = session.getIdToken().payload.sub as string;
+        setUser(buildUser(sub, attrs));
+      });
+    });
   }, []);
 
-  const saveSession = (u: User) => {
-    setUser(u);
-    localStorage.setItem('ev_user', JSON.stringify(u));
-  };
-
   /* ── LOGIN ──────────────────────────────────────────────── */
-  // MOCK: Replace this function body with Cognito Auth.signIn() call
-  const login = useCallback(async (email: string, _password: string) => {
+  const login = useCallback(async (
+    email: string, password: string
+  ): Promise<{ success: boolean; role?: UserRole; error?: string }> => {
     setIsLoading(true);
     setError(null);
-    await delay(600); // simulate network
-    const found = MOCK_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (!found) {
-      const msg = friendlyError('UserNotFoundException');
-      setError(msg);
-      setIsLoading(false);
-      return { success: false, error: msg };
-    }
-    saveSession(found);
-    setIsLoading(false);
-    return { success: true, role: found.role };
+
+    return new Promise(resolve => {
+      const authDetails = new AuthenticationDetails({ Username: email, Password: password });
+      const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+
+      cognitoUser.authenticateUser(authDetails, {
+        onSuccess: (session: CognitoUserSession) => {
+          cognitoUser.getUserAttributes((attrErr, attrs) => {
+            setIsLoading(false);
+            if (attrErr || !attrs) {
+              const msg = friendlyError('NetworkError');
+              setError(msg);
+              resolve({ success: false, error: msg });
+              return;
+            }
+            const sub = session.getIdToken().payload.sub as string;
+            const u   = buildUser(sub, attrs);
+            setUser(u);
+            resolve({ success: true, role: u.role });
+          });
+        },
+        onFailure: (err: { code?: string; name?: string }) => {
+          setIsLoading(false);
+          const msg = friendlyError(err.code ?? err.name ?? '');
+          setError(msg);
+          resolve({ success: false, error: msg });
+        },
+        // Admin-created accounts forced to change password on first login
+        newPasswordRequired: () => {
+          setIsLoading(false);
+          const msg = 'Please reset your password to continue.';
+          setError(msg);
+          resolve({ success: false, error: msg });
+        },
+      });
+    });
   }, []);
 
   /* ── REGISTER ───────────────────────────────────────────── */
-  // MOCK: Replace this function body with Cognito Auth.signUp() call
   const register = useCallback(async (data: {
     name: string; email: string; password: string;
     phone?: string; role: 'buyer' | 'agent'; agencyName?: string;
-  }) => {
+  }): Promise<{ success: boolean; needsOTP: boolean; error?: string }> => {
     setIsLoading(true);
     setError(null);
-    await delay(700);
 
-    const exists = MOCK_USERS.find(u => u.email.toLowerCase() === data.email.toLowerCase())
-      || JSON.parse(localStorage.getItem('ev_registered') || '[]')
-           .find((u: User) => u.email.toLowerCase() === data.email.toLowerCase());
+    pendingPasswordRef.current = data.password;
 
-    if (exists) {
-      const msg = friendlyError('UsernameExistsException');
-      setError(msg);
-      setIsLoading(false);
-      return { success: false, needsOTP: false, error: msg };
+    const attrs: CognitoUserAttribute[] = [
+      new CognitoUserAttribute({ Name: 'name',        Value: data.name  }),
+      new CognitoUserAttribute({ Name: 'email',       Value: data.email }),
+      new CognitoUserAttribute({ Name: 'custom:role', Value: data.role  }),
+    ];
+    if (data.phone) {
+      attrs.push(new CognitoUserAttribute({ Name: 'phone_number',      Value: data.phone       }));
+    }
+    if (data.agencyName) {
+      attrs.push(new CognitoUserAttribute({ Name: 'custom:agencyName', Value: data.agencyName! }));
     }
 
-    const newUser: User = {
-      id:         `user_${data.role}_${Date.now()}`,
-      name:       data.name,
-      email:      data.email,
-      phone:      data.phone,
-      role:       data.role,
-      verified:   false,
-      agencyName: data.agencyName,
-      createdAt:  new Date().toISOString(),
-    };
+    // Cognito pool uses email as alias — username must not be an email address
+    const username = `ev_${data.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}`;
 
-    // Store pending user (unverified) in localStorage
-    const pending = JSON.parse(localStorage.getItem('ev_registered') || '[]');
-    pending.push(newUser);
-    localStorage.setItem('ev_registered', JSON.stringify(pending));
-    localStorage.setItem('ev_pending_email', data.email);
-
-    setIsLoading(false);
-    return { success: true, needsOTP: true };
+    return new Promise(resolve => {
+      userPool.signUp(username, data.password, attrs, [], (err, result) => {
+        setIsLoading(false);
+        if (err) {
+          const msg = friendlyError((err as any).code ?? err.name ?? '');
+          setError(msg);
+          pendingPasswordRef.current = null;
+          pendingUsernameRef.current = null;
+          resolve({ success: false, needsOTP: false, error: msg });
+          return;
+        }
+        // Store the generated username so confirmOTP can use it
+        pendingUsernameRef.current = result?.user.getUsername() ?? username;
+        // userConfirmed=false means Cognito sent a verification email
+        resolve({ success: true, needsOTP: !(result?.userConfirmed ?? false) });
+      });
+    });
   }, []);
 
   /* ── CONFIRM OTP ────────────────────────────────────────── */
-  // MOCK: Replace this function body with Cognito Auth.confirmSignUp() call
-  const confirmOTP = useCallback(async (email: string, otp: string) => {
+  const confirmOTP = useCallback(async (
+    email: string, otp: string
+  ): Promise<{ success: boolean; role?: string; error?: string }> => {
     setIsLoading(true);
     setError(null);
-    await delay(600);
 
-    if (otp.length !== 6 || !/^\d+$/.test(otp)) {
-      const msg = friendlyError('CodeMismatchException');
-      setError(msg);
-      setIsLoading(false);
-      return { success: false, error: msg };
-    }
+    // Use generated username if available (email-alias pools require actual username for confirmation)
+    const usernameForConfirm = pendingUsernameRef.current ?? email;
+    const cognitoUser = new CognitoUser({ Username: usernameForConfirm, Pool: userPool });
 
-    // Find and verify the pending user
-    const pending: User[] = JSON.parse(localStorage.getItem('ev_registered') || '[]');
-    const idx = pending.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+    return new Promise(resolve => {
+      cognitoUser.confirmRegistration(otp, true, err => {
+        if (err) {
+          pendingUsernameRef.current = null;
+          setIsLoading(false);
+          const msg = friendlyError((err as any).code ?? err.name ?? '');
+          setError(msg);
+          resolve({ success: false, error: msg });
+          return;
+        }
 
-    if (idx === -1) {
-      const msg = friendlyError('UserNotFoundException');
-      setError(msg);
-      setIsLoading(false);
-      return { success: false, error: msg };
-    }
+        // Auto-login after OTP confirmed
+        const storedPw = pendingPasswordRef.current;
+        if (!storedPw) {
+          setIsLoading(false);
+          resolve({ success: true, role: 'buyer' });
+          return;
+        }
 
-    pending[idx].verified = true;
-    localStorage.setItem('ev_registered', JSON.stringify(pending));
-    localStorage.removeItem('ev_pending_email');
-    saveSession(pending[idx]);
-    setIsLoading(false);
-    return { success: true };
+        const authDetails = new AuthenticationDetails({ Username: email, Password: storedPw });
+        cognitoUser.authenticateUser(authDetails, {
+          onSuccess: (session: CognitoUserSession) => {
+            cognitoUser.getUserAttributes((attrErr, attrs) => {
+              pendingPasswordRef.current = null;
+              pendingUsernameRef.current = null;
+              setIsLoading(false);
+              if (attrErr || !attrs) {
+                resolve({ success: true, role: 'buyer' });
+                return;
+              }
+              const sub = session.getIdToken().payload.sub as string;
+              const u   = buildUser(sub, attrs);
+              setUser(u);
+              resolve({ success: true, role: u.role });
+            });
+          },
+          onFailure: () => {
+            // OTP confirmed — auto-login failed, user can login manually
+            pendingPasswordRef.current = null;
+            pendingUsernameRef.current = null;
+            setIsLoading(false);
+            resolve({ success: true, role: 'buyer' });
+          },
+        });
+      });
+    });
+  }, []);
+
+  /* ── RESEND OTP ──────────────────────────────────────────── */
+  const resendOTP = useCallback(async (
+    email: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const usernameForResend = pendingUsernameRef.current ?? email;
+    const cognitoUser = new CognitoUser({ Username: usernameForResend, Pool: userPool });
+    return new Promise(resolve => {
+      cognitoUser.resendConfirmationCode((err) => {
+        if (err) {
+          const msg = friendlyError((err as any).code ?? err.name ?? '');
+          resolve({ success: false, error: msg });
+          return;
+        }
+        resolve({ success: true });
+      });
+    });
   }, []);
 
   /* ── FORGOT PASSWORD ────────────────────────────────────── */
-  // MOCK: Replace this function body with Cognito Auth.forgotPassword() call
-  const forgotPassword = useCallback(async (email: string) => {
+  const forgotPassword = useCallback(async (
+    email: string
+  ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     setError(null);
-    await delay(700);
-    // Mock: always success (real: Cognito will check if email exists)
-    localStorage.setItem('ev_reset_email', email);
-    setIsLoading(false);
-    return { success: true };
+
+    const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+
+    return new Promise(resolve => {
+      cognitoUser.forgotPassword({
+        onSuccess: () => {
+          localStorage.setItem('ev_reset_email', email);
+          setIsLoading(false);
+          resolve({ success: true });
+        },
+        onFailure: (err: { code?: string; name?: string }) => {
+          setIsLoading(false);
+          const msg = friendlyError(err.code ?? err.name ?? '');
+          setError(msg);
+          resolve({ success: false, error: msg });
+        },
+      });
+    });
   }, []);
 
   /* ── RESET PASSWORD ─────────────────────────────────────── */
-  // MOCK: Replace this function body with Cognito Auth.forgotPasswordSubmit() call
-  const resetPassword = useCallback(async (email: string, otp: string, _newPassword: string) => {
+  const resetPassword = useCallback(async (
+    email: string, otp: string, newPwd: string
+  ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     setError(null);
-    await delay(700);
 
-    if (otp.length !== 6 || !/^\d+$/.test(otp)) {
-      const msg = friendlyError('CodeMismatchException');
-      setError(msg);
-      setIsLoading(false);
-      return { success: false, error: msg };
-    }
+    const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
 
-    localStorage.removeItem('ev_reset_email');
-    setIsLoading(false);
-    return { success: true };
+    return new Promise(resolve => {
+      cognitoUser.confirmPassword(otp, newPwd, {
+        onSuccess: () => {
+          localStorage.removeItem('ev_reset_email');
+          setIsLoading(false);
+          resolve({ success: true });
+        },
+        onFailure: (err: { code?: string; name?: string }) => {
+          setIsLoading(false);
+          const msg = friendlyError(err.code ?? err.name ?? '');
+          setError(msg);
+          resolve({ success: false, error: msg });
+        },
+      });
+    });
   }, []);
 
   /* ── LOGOUT ─────────────────────────────────────────────── */
   const logout = useCallback(() => {
+    const currentUser = userPool.getCurrentUser();
+    if (currentUser) currentUser.signOut();
     setUser(null);
-    localStorage.removeItem('ev_user');
   }, []);
 
-  /* ── GET TOKEN ──────────────────────────────────────────── */
-  // MOCK: Replace with Cognito session token
-  const getToken = useCallback(() => {
-    if (!user) return null;
-    return `mock_token_${user.id}`;
-  }, [user]);
+  /* ── GET TOKEN (async — handles silent token refresh) ── */
+  const getToken = useCallback((): Promise<string | null> => {
+    return new Promise(resolve => {
+      const currentUser = userPool.getCurrentUser();
+      if (!currentUser) return resolve(null);
+      currentUser.getSession((err: Error | null, session: CognitoUserSession | null) => {
+        if (err || !session?.isValid()) return resolve(null);
+        resolve(session.getIdToken().getJwtToken());
+      });
+    });
+  }, []);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -260,6 +376,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     confirmOTP,
     forgotPassword,
     resetPassword,
+    resendOTP,
     logout,
     getToken,
     clearError,
@@ -274,6 +391,3 @@ export const useAuthContext = () => {
   if (!ctx) throw new Error('useAuthContext must be used inside <AuthProvider>');
   return ctx;
 };
-
-/* ─── Utility ────────────────────────────────────────────── */
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));

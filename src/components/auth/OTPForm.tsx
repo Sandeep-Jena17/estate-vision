@@ -11,7 +11,7 @@ const OTP_LENGTH = 6;
 const RESEND_SECONDS = 59;
 
 const OTPForm: React.FC<OTPFormProps> = ({ email, onSuccess, onBack }) => {
-  const { confirmOTP, isLoading } = useAuth();
+  const { confirmOTP, resendOTP, isLoading } = useAuth();
 
   const [digits,    setDigits]    = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [timer,     setTimer]     = useState(RESEND_SECONDS);
@@ -33,10 +33,7 @@ const OTPForm: React.FC<OTPFormProps> = ({ email, onSuccess, onBack }) => {
     setFormError('');
     const result = await confirmOTP(email, otp);
     if (result.success) {
-      // After OTP confirm the user is in localStorage — re-read role
-      const saved = localStorage.getItem('ev_user');
-      const role  = saved ? JSON.parse(saved).role : 'buyer';
-      onSuccess(role);
+      onSuccess(result.role ?? 'buyer');
     } else {
       setFormError(result.error || 'Invalid OTP. Please try again.');
       setDigits(Array(OTP_LENGTH).fill(''));
@@ -76,13 +73,14 @@ const OTPForm: React.FC<OTPFormProps> = ({ email, onSuccess, onBack }) => {
     if (text.length === OTP_LENGTH) submit(text);
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setTimer(RESEND_SECONDS);
     setCanResend(false);
     setDigits(Array(OTP_LENGTH).fill(''));
     setFormError('');
     inputRefs.current[0]?.focus();
-    // MOCK: Replace with Cognito Auth.resendSignUp(email)
+    const result = await resendOTP(email);
+    if (!result.success) setFormError(result.error || 'Failed to resend code.');
   };
 
   const maskedEmail = email.replace(/(.{2}).+(@.+)/, '$1•••$2');

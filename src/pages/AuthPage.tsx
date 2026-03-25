@@ -40,14 +40,16 @@ const AuthPage: React.FC = () => {
     if (m) setMode(m);
   }, [params]);
 
-  /* After login/register success */
+  /* After login/register success — route by role */
   const handleSuccess = (role: string) => {
     const saved = localStorage.getItem('ev_redirect');
     localStorage.removeItem('ev_redirect');
-    if (role === 'admin' || role === 'agent') {
-      navigate(saved && saved.startsWith('/admin') ? saved : '/admin', { replace: true });
+    if (role === 'admin') {
+      navigate(saved?.startsWith('/admin') ? saved : '/admin', { replace: true });
+    } else if (role === 'agent') {
+      navigate(saved?.startsWith('/agent') ? saved : '/agent', { replace: true });
     } else {
-      navigate(saved || '/', { replace: true });
+      navigate(saved || '/dashboard', { replace: true });
     }
   };
 

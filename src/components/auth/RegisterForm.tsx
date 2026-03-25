@@ -56,7 +56,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onModeChange, onNeedsOTP })
     setFormError('');
     const result = await register({
       name, email, password,
-      phone: phone ? `+91 ${phone}` : undefined,
+      phone: phone ? `+91${phone}` : undefined,
       role,
       agencyName: role === 'agent' ? agencyName : undefined,
     });
