@@ -5,7 +5,7 @@
  * CSS lives exclusively in src/styles/admin.css (no inline styles)
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/admin.css';
@@ -124,7 +124,6 @@ function AgentOverviewTab({ listings, leads, navigate }: {
 }) {
   const activeListings = listings.filter(l => l.status === 'active').length;
   const soldListings   = listings.filter(l => l.status === 'sold').length;
-  const totalViews     = listings.reduce((s, l) => s + l.views, 0);
   const hotLeads       = leads.filter(l => l.score === 'hot').length;
   const visitsThisWeek = leads.filter(l => l.visitDate).length;
   const closedDeals    = leads.filter(l => l.stage === 'closed').length;
@@ -1492,11 +1491,12 @@ export default function AgentDashboardPage() {
 
       {/* ── Tab content ── */}
       <div className="admin-body">
-        {view === 'overview'  && <AgentOverviewTab listings={MOCK_MY_LISTINGS} leads={MOCK_MY_LEADS} navigate={navigate} />}
-        {view === 'listings'  && <MyListingsTab    listings={MOCK_MY_LISTINGS} navigate={navigate} />}
-        {view === 'ai-writer' && <AIWriterTab />}
-        {view === 'leads'     && <MyLeadsTab       leads={MOCK_MY_LEADS} />}
-        {view === 'profile'   && <ProfileTab       userName={name} userEmail={email} agencyName={agencyName} />}
+        {view === 'overview'    && <AgentOverviewTab listings={MOCK_MY_LISTINGS} leads={MOCK_MY_LEADS} navigate={navigate} />}
+        {view === 'listings'    && <MyListingsTab    listings={MOCK_MY_LISTINGS} navigate={navigate} />}
+        {view === 'listing-new' && <PostPropertyTab  navigate={navigate} />}
+        {view === 'ai-writer'   && <AIWriterTab />}
+        {view === 'leads'       && <MyLeadsTab       leads={MOCK_MY_LEADS} />}
+        {view === 'profile'     && <ProfileTab       userName={name} userEmail={email} agencyName={agencyName} />}
       </div>
     </div>
   );
