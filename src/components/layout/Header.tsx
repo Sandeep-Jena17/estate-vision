@@ -1,29 +1,99 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '../common';
+import { useAuth } from '../../hooks/useAuth';
+import { User, UserRole } from '../../types/auth.types';
 
-// ── Theme hook (no separate file needed) ─────────────
+/* ── Theme hook ──────────────────────────────────────────── */
 function useTheme() {
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('ev-theme');
     if (saved) return saved === 'dark';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
-
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     localStorage.setItem('ev-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
-
   return { isDark, toggle: () => setIsDark(d => !d) };
 }
 
+/* ── Nav dropdown menu items per role ────────────────────── */
+const MENU_ITEMS: Record<UserRole, { icon: string; label: string; path: string }[]> = {
+  admin: [
+    { icon: '⊞',  label: 'Admin Panel',    path: '/admin'            },
+    { icon: '📊', label: 'Analytics',       path: '/admin/analytics'  },
+    { icon: '👥', label: 'Manage Agents',   path: '/admin/agents'     },
+    { icon: '⚙',  label: 'Settings',        path: '/admin/settings'   },
+  ],
+  agent: [
+    { icon: '⊞',  label: 'Agent Dashboard', path: '/admin'            },
+    { icon: '🏠', label: 'My Listings',      path: '/admin/listings'   },
+    { icon: '👥', label: 'My Leads',         path: '/admin/leads'      },
+    { icon: '⚙',  label: 'Profile Settings', path: '/dashboard'        },
+  ],
+  buyer: [
+    { icon: '👤', label: 'My Dashboard',     path: '/dashboard'        },
+    { icon: '♥',  label: 'Saved Properties', path: '/dashboard/saved'  },
+    { icon: '📅', label: 'My Bookings',      path: '/dashboard/bookings'},
+    { icon: '⚙',  label: 'Settings',         path: '/dashboard/settings'},
+  ],
+};
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: '👑 Admin',
+  agent: '🏢 Agent',
+  buyer: '🏠 Buyer',
+};
+
+/* ── NavDropdown ─────────────────────────────────────────── */
+interface DropdownProps {
+  user:       User;
+  onNavigate: (path: string) => void;
+  onLogout:   () => void;
+  onClose:    () => void;
+}
+const NavDropdown: React.FC<DropdownProps> = ({ user, onNavigate, onLogout, onClose }) => {
+  const items = MENU_ITEMS[user.role];
+  return (
+    <div className="nav-dropdown">
+      {/* User info header */}
+      <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{user.name}</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{user.email}</div>
+      </div>
+      {items.map(item => (
+        <button
+          key={item.path}
+          className="nav-dropdown-item"
+          onClick={() => { onNavigate(item.path); onClose(); }}
+        >
+          <span style={{ width: 18, textAlign: 'center' }}>{item.icon}</span>
+          {item.label}
+        </button>
+      ))}
+      <div className="nav-dropdown-divider" />
+      <button
+        className="nav-dropdown-item danger"
+        onClick={() => { onLogout(); onClose(); }}
+      >
+        <span style={{ width: 18, textAlign: 'center' }}>↩</span>
+        Log Out
+      </button>
+    </div>
+  );
+};
+
+/* ── Header ──────────────────────────────────────────────── */
 export const Header: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const { isDark, toggle }                    = useTheme();
+  const { user, isLoggedIn, logout }          = useAuth();
   const [isScrolled, setIsScrolled]           = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dropdownOpen,     setDropdownOpen]   = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 10);
@@ -36,9 +106,18 @@ export const Header: React.FC = () => {
     return () => { document.body.style.overflow = ''; };
   }, [isMobileMenuOpen]);
 
+  useEffect(() => { setMobileMenuOpen(false); }, [location.pathname]);
+
+  /* Close dropdown on outside click */
   useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location.pathname]);
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/');
@@ -51,23 +130,18 @@ export const Header: React.FC = () => {
     { label: 'Agents',     path: '/agents'     },
   ];
 
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <>
-      {/* ── NAV ──────────────────────────────────────── */}
+      {/* ── NAV ─────────────────────────────────────── */}
       <nav
         className="nav"
         style={{ boxShadow: isScrolled ? '0 2px 20px rgba(0,0,0,.08)' : 'none' }}
       >
-        {/*
-          ✅ KEY FIX: replaced the inline style div with .nav-inner
-          Old code had padding:'0 24px' + maxWidth:1280px + margin:'0 auto'
-          which created horizontal overflow on iPhone SE (375px)
-
-          .nav-inner uses var(--px) which is:
-            16px on mobile  (≤640px)
-            20px on tablet  (≤768px)
-            24px on desktop (≥768px)
-        */}
         <div className="nav-inner">
 
           {/* Logo */}
@@ -89,7 +163,7 @@ export const Header: React.FC = () => {
             ))}
           </div>
 
-          {/* Desktop: theme toggle + auth buttons */}
+          {/* Desktop: theme toggle + auth area */}
           <div className="nav-desktop-auth">
             <button
               className="theme-toggle"
@@ -99,19 +173,72 @@ export const Header: React.FC = () => {
             >
               {isDark ? '☀️' : '🌙'}
             </button>
-            <Button variant="ghost" size="sm">Log In</Button>
-            <Button variant="gold"  size="sm">✦ Post Property</Button>
+
+            {isLoggedIn && user ? (
+              /* ── Logged-in user menu ── */
+              <div className="nav-user-menu" ref={dropdownRef}>
+                <button
+                  className="nav-user-trigger"
+                  onClick={() => setDropdownOpen(o => !o)}
+                  aria-expanded={dropdownOpen}
+                  aria-label="User menu"
+                >
+                  <img
+                    src={user.avatar || `https://i.pravatar.cc/80?u=${user.id}`}
+                    alt={user.name}
+                    className="nav-avatar"
+                  />
+                  <span className="nav-user-name">{user.name.split(' ')[0]}</span>
+                  <span className={`badge badge-role-${user.role}`}>
+                    {ROLE_LABELS[user.role]}
+                  </span>
+                  <span style={{ fontSize: 10, color: 'var(--muted)' }}>▾</span>
+                </button>
+
+                {dropdownOpen && (
+                  <NavDropdown
+                    user={user}
+                    onNavigate={navigate}
+                    onLogout={handleLogout}
+                    onClose={() => setDropdownOpen(false)}
+                  />
+                )}
+              </div>
+            ) : (
+              /* ── Logged-out buttons ── */
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/auth?mode=login')}
+                >
+                  Log In
+                </Button>
+                <Button
+                  variant="gold"
+                  size="sm"
+                  onClick={() => navigate('/auth?mode=register')}
+                >
+                  Sign Up Free
+                </Button>
+              </>
+            )}
           </div>
 
-          {/* Mobile: theme toggle + hamburger (both in one row) */}
+          {/* Mobile: theme toggle + hamburger */}
           <div className="nav-mobile-right">
-            <button
-              className="theme-toggle"
-              onClick={toggle}
-              aria-label="Toggle theme"
-            >
+            <button className="theme-toggle" onClick={toggle} aria-label="Toggle theme">
               {isDark ? '☀️' : '🌙'}
             </button>
+            {isLoggedIn && user && (
+              <img
+                src={user.avatar || `https://i.pravatar.cc/80?u=${user.id}`}
+                alt={user.name}
+                className="nav-avatar"
+                onClick={() => navigate('/dashboard')}
+                style={{ cursor: 'pointer' }}
+              />
+            )}
             <button
               className="nav-mobile-toggle"
               onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
@@ -125,7 +252,7 @@ export const Header: React.FC = () => {
         </div>
       </nav>
 
-      {/* ── MOBILE OVERLAY ───────────────────────────── */}
+      {/* ── MOBILE OVERLAY ────────────────────────────── */}
       {isMobileMenuOpen && (
         <div
           className="mobile-menu-overlay"
@@ -133,7 +260,7 @@ export const Header: React.FC = () => {
         />
       )}
 
-      {/* ── MOBILE MENU ──────────────────────────────── */}
+      {/* ── MOBILE MENU ───────────────────────────────── */}
       {isMobileMenuOpen && (
         <div className="mobile-menu">
           {navItems.map(item => (
@@ -145,14 +272,53 @@ export const Header: React.FC = () => {
               {item.label}
             </button>
           ))}
-          <div className="mobile-menu-auth">
-            <Button variant="ghost" size="sm" style={{ width: '100%' }}>
-              Log In
-            </Button>
-            <Button variant="gold" size="sm" style={{ width: '100%' }}>
-              ✦ Post Property
-            </Button>
-          </div>
+
+          {isLoggedIn && user ? (
+            <div className="mobile-menu-auth">
+              <div style={{ padding: '8px 0', fontSize: 13, color: 'var(--muted)' }}>
+                Signed in as <strong style={{ color: 'var(--text)' }}>{user.name.split(' ')[0]}</strong>
+                {' '}<span className={`badge badge-role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
+              </div>
+              {MENU_ITEMS[user.role].slice(0, 2).map(item => (
+                <Button
+                  key={item.path}
+                  variant="ghost"
+                  size="sm"
+                  style={{ width: '100%', justifyContent: 'flex-start' }}
+                  onClick={() => navigate(item.path)}
+                >
+                  {item.icon} {item.label}
+                </Button>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                style={{ width: '100%' }}
+                onClick={handleLogout}
+              >
+                ↩ Log Out
+              </Button>
+            </div>
+          ) : (
+            <div className="mobile-menu-auth">
+              <Button
+                variant="ghost"
+                size="sm"
+                style={{ width: '100%' }}
+                onClick={() => navigate('/auth?mode=login')}
+              >
+                Log In
+              </Button>
+              <Button
+                variant="gold"
+                size="sm"
+                style={{ width: '100%' }}
+                onClick={() => navigate('/auth?mode=register')}
+              >
+                Sign Up Free
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </>

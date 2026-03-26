@@ -104,7 +104,7 @@
   max-width:       1280px;
   margin:          0 auto;
   padding:         0 var(--px);
-  overflow:        hidden;
+  overflow:        visible;
   gap:             8px;
 }
 
@@ -170,6 +170,90 @@
 [data-theme="dark"] .mobile-menu {
   background:   var(--surface);
   border-color: var(--border);
+}
+
+/* ── Nav user menu (logged-in state) ────────────────────────── */
+.nav-user-menu {
+  position:  relative;
+  z-index:   1010;
+}
+.nav-user-trigger {
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  background:    none;
+  border:        none;
+  cursor:        pointer;
+  padding:       5px 8px;
+  border-radius: var(--radius-sm);
+  transition:    background var(--transition);
+  font-family:   var(--font-body);
+}
+.nav-user-trigger:hover { background: var(--bg2); }
+
+.nav-avatar {
+  width:         32px;
+  height:        32px;
+  border-radius: 50%;
+  object-fit:    cover;
+  border:        2px solid var(--gold);
+  flex-shrink:   0;
+}
+.nav-user-name {
+  font-size:     14px;
+  font-weight:   500;
+  color:         var(--text);
+  max-width:     90px;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+}
+
+/* Role badges in nav */
+.badge-role-admin { background: #fef2f2; color: var(--gold);  border: 1px solid #fee2e2; }
+.badge-role-agent { background: #eff6ff; color: #2563eb;      border: 1px solid #bfdbfe; }
+.badge-role-buyer { background: #f0fdf4; color: #059669;      border: 1px solid #a7f3d0; }
+[data-theme="dark"] .badge-role-admin { background: rgba(184,134,11,.15); color: var(--gold2); border-color: rgba(184,134,11,.3); }
+[data-theme="dark"] .badge-role-agent { background: rgba(37,99,235,.15);  color: #93c5fd;      border-color: rgba(37,99,235,.3);  }
+[data-theme="dark"] .badge-role-buyer { background: rgba(5,150,105,.15);  color: #6ee7b7;      border-color: rgba(5,150,105,.3);  }
+
+/* Nav dropdown */
+.nav-dropdown {
+  position:      absolute;
+  top:           calc(100% + 8px);
+  right:         0;
+  background:    var(--surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow:    var(--shadow-lg);
+  min-width:     210px;
+  overflow:      hidden;
+  z-index:       1020;
+  animation:     slideDown .18s ease;
+}
+.nav-dropdown-item {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  padding:     11px 16px;
+  font-size:   13px;
+  color:       var(--text);
+  background:  none;
+  border:      none;
+  width:       100%;
+  text-align:  left;
+  cursor:      pointer;
+  transition:  background var(--transition);
+  font-family: var(--font-body);
+}
+.nav-dropdown-item:hover  { background: var(--bg2); }
+.nav-dropdown-item.danger { color: #dc2626; }
+.nav-dropdown-item.danger:hover { background: #fef2f2; }
+[data-theme="dark"] .nav-dropdown-item.danger:hover { background: #2d1515; }
+.nav-dropdown-divider {
+  height:     1px;
+  background: var(--border);
+  margin:     4px 0;
 }
 
 /* Responsive — from App.css */
