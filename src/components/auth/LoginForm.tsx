@@ -14,7 +14,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 const LoginForm: React.FC<LoginFormProps> = ({ onModeChange, onSuccess }) => {
-  const { login, isLoading } = useAuth();
+  const { login, completeNewPassword, isLoading } = useAuth();
 
   const [email,       setEmail]       = useState('');
   const [password,    setPassword]    = useState('');
@@ -23,6 +23,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onModeChange, onSuccess }) => {
   const [emailErr,    setEmailErr]    = useState('');
   const [passwordErr, setPasswordErr] = useState('');
   const [formError,   setFormError]   = useState('');
+
+  // For new password prompt
+  const [showNewPasswordPrompt, setShowNewPasswordPrompt] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordErr, setNewPasswordErr] = useState('');
 
   const validateEmail = (v: string) => {
     if (!v) return 'Email is required.';
@@ -53,12 +58,71 @@ const LoginForm: React.FC<LoginFormProps> = ({ onModeChange, onSuccess }) => {
 
     setFormError('');
     const result = await login(email, password);
+    if (result.needsNewPassword) {
+      setShowNewPasswordPrompt(true);
+      return;
+    }
     if (result.success && result.role) {
       onSuccess(result.role);
     } else {
       setFormError(result.error || 'Login failed. Please try again.');
     }
   };
+
+  const handleNewPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const err = validatePassword(newPassword);
+    setNewPasswordErr(err);
+    if (err) return;
+
+    setFormError('');
+    const result = await completeNewPassword(newPassword);
+    if (result.success && result.role) {
+      onSuccess(result.role);
+    } else {
+      setFormError(result.error || 'Failed to set password. Please try again.');
+    }
+  };
+
+  if (showNewPasswordPrompt) {
+    return (
+      <div className="auth-form">
+        <h2 className="auth-title">Set New Password</h2>
+        <p className="auth-subtitle">Your account requires a new password to continue.</p>
+
+        {formError && <div className="auth-error-banner">{formError}</div>}
+
+        <form onSubmit={handleNewPasswordSubmit} noValidate>
+          <div className="field">
+            <label className="label" htmlFor="new-password">New Password</label>
+            <input
+              id="new-password"
+              type="password"
+              className={`input ${newPasswordErr ? 'input-error' : ''}`}
+              placeholder="Enter new password"
+              value={newPassword}
+              onChange={e => { setNewPassword(e.target.value); if (newPasswordErr) setNewPasswordErr(''); }}
+            />
+            {newPasswordErr && <span className="field-error">{newPasswordErr}</span>}
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-gold btn-full"
+            disabled={isLoading}
+          >
+            {isLoading ? 'Setting password…' : 'Set Password →'}
+          </button>
+        </form>
+
+        <p className="auth-switch">
+          <button className="auth-link" onClick={() => setShowNewPasswordPrompt(false)}>
+            Back to login
+          </button>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-form">
